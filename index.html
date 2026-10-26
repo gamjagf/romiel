@@ -324,6 +324,39 @@ body{font-size:15px}
   *,*::before,*::after{animation:none!important;transition:none!important}
   .rv{opacity:1;transform:none}
 }
+
+/* 로미엘 회원 기능 */
+.hd-right{flex-wrap:wrap;justify-content:flex-end}
+.member-actions{display:flex;align-items:center;gap:8px;color:#F5EBDD}
+.member-actions [hidden]{display:none!important}
+.member-button{min-height:40px;padding:0 12px;border:1px solid var(--line);border-radius:999px;font-size:14px;white-space:nowrap}
+.member-button.join{background:var(--gold);color:var(--wine);font-weight:700}
+.member-email{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.member-button:focus-visible,.member-dialog button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.member-dialog{position:fixed;inset:0;margin:auto;width:min(460px,calc(100% - 32px));max-height:calc(100dvh - 40px);overflow:auto;border:1px solid var(--line);border-radius:22px;background:var(--cream);color:var(--wine);padding:30px;box-shadow:0 24px 90px #0005}
+.member-dialog::backdrop{background:rgba(20,4,9,.7);backdrop-filter:blur(4px)}
+.member-dialog h2{font-family:var(--serif);font-size:27px;margin:10px 0}
+.member-dialog .member-intro{font-size:14px;line-height:1.8;color:var(--muted);margin-bottom:20px}
+.member-close{position:absolute;right:14px;top:10px;width:40px;height:40px;font-size:28px}
+.member-dialog label{display:block;font-size:14px;font-weight:700;margin:16px 0 7px}
+.member-dialog input{display:block;width:100%;min-height:48px;border:1px solid #cbb9b5;border-radius:10px;padding:12px;font:inherit;font-size:16px;background:#fff;color:var(--wine)}
+.member-dialog input:focus{outline:2px solid var(--gold);outline-offset:2px}
+.member-dialog .member-submit{width:100%;margin-top:20px;min-height:48px;border-radius:999px;background:var(--wine);color:var(--cream);font-weight:700}
+.member-dialog button:disabled{opacity:.55;cursor:wait}
+.member-note{font-size:12px;line-height:1.7;color:var(--muted);margin-top:8px}
+.member-message{font-size:14px;line-height:1.8;margin-top:16px;white-space:pre-line;overflow-wrap:anywhere}
+.member-message[data-error="true"]{color:#a11932}
+.member-switch{display:block;margin:18px auto 0;font-size:14px;text-decoration:underline;text-underline-offset:4px}
+@media(max-width:600px){
+ .hd .wrap{height:auto;min-height:68px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px;gap:6px}
+ .hd-right{gap:4px;flex:1;min-width:0}
+ .hd-right>.btn-gold{display:none}
+ .member-actions{gap:5px}.member-button{font-size:13px;padding:0 10px}
+ .member-email{max-width:110px;font-size:12px}
+ .member-dialog{padding:25px 22px}
+}
+@media(min-width:1024px) and (max-width:1199px){.nav{gap:14px}.hd .wrap{gap:8px}.hd .btn{padding:0 12px}}
+
 </style>
 </head>
 <body>
@@ -335,6 +368,12 @@ body{font-size:15px}
       <a href="#products">제품</a><a href="#story">브랜드 스토리</a><a href="#ingredients">성분</a><a href="#routine">루틴</a>
     </nav>
     <div class="hd-right">
+      <div class="member-actions" aria-label="회원 메뉴">
+        <button type="button" class="member-button" id="memberLogin">로그인</button>
+        <button type="button" class="member-button join" id="memberSignup">회원가입</button>
+        <span class="member-email" id="memberEmail" hidden></span>
+        <button type="button" class="member-button" id="memberLogout" hidden>로그아웃</button>
+      </div>
       <a class="btn btn-gold" href="#offer">첫 구매 혜택</a>
       <button class="menu-btn" id="menuBtn" aria-label="메뉴 열기" aria-expanded="false">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
@@ -703,5 +742,152 @@ body{font-size:15px}
   $('again').addEventListener('click', function(){ $('form').classList.remove('sent'); $('form').reset(); });
 })();
 </script>
+
+<dialog class="member-dialog" id="memberDialog" aria-labelledby="memberTitle" aria-describedby="memberIntro">
+  <button class="member-close" id="memberClose" type="button" aria-label="회원 창 닫기">×</button>
+  <p class="eyebrow">ROMIEL MEMBERS</p>
+  <h2 id="memberTitle">로그인</h2>
+  <p class="member-intro" id="memberIntro">가입하신 이메일과 비밀번호를 입력해 주세요.</p>
+  <form id="memberForm">
+    <label for="memberInputEmail">이메일</label>
+    <input id="memberInputEmail" name="email" type="email" autocomplete="email" placeholder="example@email.com" required maxlength="254">
+    <label for="memberPassword">비밀번호</label>
+    <input id="memberPassword" name="password" type="password" autocomplete="current-password" required>
+    <p class="member-note" id="memberPasswordNote">가입할 때 사용한 비밀번호를 입력해 주세요.</p>
+    <div id="memberConfirmGroup" hidden>
+      <label for="memberConfirm">비밀번호 확인</label>
+      <input id="memberConfirm" name="password_confirmation" type="password" autocomplete="new-password">
+    </div>
+    <button type="submit" class="member-submit" id="memberSubmit">로그인</button>
+  </form>
+  <p class="member-message" id="memberMessage" role="status" aria-live="polite" aria-atomic="true"></p>
+  <button class="member-switch" type="button" id="memberSwitch">아직 회원이 아니신가요? 회원가입</button>
+</dialog>
+
+<script>
+/* Supabase Auth: Publishable key만 사용합니다. Secret/service_role key는 사용하지 않습니다. */
+(function(){
+  'use strict';
+  var projectUrl = 'https://hngxucpwbadotokuqjsf.supabase.co';
+  var publishableKey = 'sb_publishable_PkGV6_dSZhtkE0qGoXscRw_RZFERdxt';
+  var returnUrl = 'https://gamjagf.github.io/romiel/';
+  var byId = function(id){ return document.getElementById(id); };
+  var dialog = byId('memberDialog'), form = byId('memberForm');
+  var mode = 'login', busy = false, client = null, sdkPromise = null;
+  var email = byId('memberInputEmail'), password = byId('memberPassword'), confirm = byId('memberConfirm');
+  function message(text, error){
+    byId('memberMessage').textContent = text;
+    byId('memberMessage').dataset.error = String(!!error);
+  }
+  function setBusy(value){
+    busy = value;
+    ['memberSubmit','memberSwitch','memberInputEmail','memberPassword','memberConfirm'].forEach(function(id){ byId(id).disabled = value; });
+    byId('memberSubmit').textContent = value ? '처리 중…' : mode === 'signup' ? '회원가입' : '로그인';
+    form.setAttribute('aria-busy', String(value));
+  }
+  function setMode(next){
+    mode = next; form.reset(); message('', false);
+    var signup = mode === 'signup';
+    byId('memberTitle').textContent = signup ? '회원가입' : '로그인';
+    byId('memberIntro').textContent = signup ? '로미엘 회원으로 가입해 주세요. 가입 후 확인 메일의 링크를 눌러 이메일 인증을 완료해 주세요.' : '가입하신 이메일과 비밀번호를 입력해 주세요.';
+    byId('memberConfirmGroup').hidden = !signup; confirm.required = signup;
+    password.autocomplete = signup ? 'new-password' : 'current-password';
+    if(signup) password.minLength = 6; else password.removeAttribute('minlength');
+    byId('memberPasswordNote').textContent = signup ? '비밀번호는 최소 6자 이상 입력해 주세요.' : '가입할 때 사용한 비밀번호를 입력해 주세요.';
+    setBusy(false);
+    byId('memberSwitch').textContent = signup ? '이미 회원이신가요? 로그인' : '아직 회원이 아니신가요? 회원가입';
+  }
+  function open(next){ setMode(next); if(!dialog.open) dialog.showModal(); email.focus(); }
+  function updateSession(session){
+    var user = session && session.user, signedIn = !!user;
+    byId('memberLogin').hidden = signedIn; byId('memberSignup').hidden = signedIn;
+    byId('memberEmail').hidden = !signedIn; byId('memberLogout').hidden = !signedIn;
+    byId('memberEmail').textContent = signedIn ? user.email : '';
+    byId('memberEmail').title = signedIn ? user.email : '';
+  }
+  function errorText(error){
+    var code = error.code || '', text = error.message || '';
+    if(code === 'email_not_confirmed' || /email not confirmed/i.test(text)) return '이메일 인증이 필요합니다. 메일함과 스팸함에서 확인 메일을 열고 링크를 눌러 주세요.';
+    if(code === 'invalid_credentials' || /invalid login credentials/i.test(text)) return '이메일 또는 비밀번호가 올바르지 않습니다. 입력 내용을 확인해 주세요.';
+    if(code === 'user_already_exists' || /already registered/i.test(text)) return '이미 가입된 이메일입니다. 로그인해 주세요.';
+    if(code === 'over_email_send_rate_limit' || code === 'over_request_rate_limit' || /rate limit/i.test(text)) return '요청이 많아 잠시 제한되었습니다. 잠시 후 다시 시도해 주세요.';
+    if(code === 'email_address_not_authorized') return '현재 프로젝트의 메일 발송 설정에서 이 주소로 보낼 수 없습니다. Supabase의 이메일 발송 설정을 확인해 주세요.';
+    if(code === 'weak_password') return '비밀번호가 보안 조건을 충족하지 않습니다. 더 긴 비밀번호로 다시 시도해 주세요.';
+    if(/fetch|network|불러오/i.test(text)) return '회원 서비스에 연결하지 못했습니다. 인터넷 연결을 확인한 후 다시 시도해 주세요.';
+    return '처리하지 못했습니다. ' + (text || '잠시 후 다시 시도해 주세요.');
+  }
+  function startClient(){
+    client = window.supabase.createClient(projectUrl, publishableKey, {
+      auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true, flowType:'implicit' }
+    });
+    client.auth.onAuthStateChange(function(event, session){ updateSession(session); });
+    return client.auth.getSession().then(function(result){
+      if(result.error) throw result.error;
+      updateSession(result.data.session); return client;
+    });
+  }
+  function getClient(){
+    if(client) return Promise.resolve(client);
+    if(!sdkPromise){
+      sdkPromise = new Promise(function(resolve, reject){
+        if(window.supabase && window.supabase.createClient){ resolve(); return; }
+        var script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
+        script.async = true;
+        script.onload = function(){ if(window.supabase && window.supabase.createClient) resolve(); else reject(new Error('회원 서비스를 불러오지 못했습니다.')); };
+        script.onerror = function(){ script.remove(); reject(new Error('회원 서비스를 불러오지 못했습니다.')); };
+        document.head.appendChild(script);
+      }).then(startClient).catch(function(error){ sdkPromise = null; client = null; throw error; });
+    }
+    return sdkPromise;
+  }
+  byId('memberLogin').addEventListener('click', function(){ open('login'); });
+  byId('memberSignup').addEventListener('click', function(){ open('signup'); });
+  byId('memberClose').addEventListener('click', function(){ dialog.close(); });
+  dialog.addEventListener('click', function(event){
+    var r = dialog.getBoundingClientRect();
+    if(event.target === dialog && (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom)) dialog.close();
+  });
+  dialog.addEventListener('close', function(){ password.value = ''; confirm.value = ''; });
+  byId('memberSwitch').addEventListener('click', function(){ if(!busy){ setMode(mode === 'login' ? 'signup' : 'login'); email.focus(); } });
+  form.addEventListener('submit', async function(event){
+    event.preventDefault(); if(busy || !form.reportValidity()) return;
+    if(mode === 'signup' && password.value !== confirm.value){ message('비밀번호와 비밀번호 확인이 일치하지 않습니다.', true); confirm.focus(); return; }
+    var action = mode, credentials = { email:email.value.trim(), password:password.value };
+    setBusy(true); message('', false);
+    try{
+      var authClient = await getClient();
+      var result = action === 'signup'
+        ? await authClient.auth.signUp({email:credentials.email, password:credentials.password, options:{emailRedirectTo:returnUrl}})
+        : await authClient.auth.signInWithPassword(credentials);
+      if(result.error) throw result.error;
+      password.value = ''; confirm.value = '';
+      if(result.data.session){ updateSession(result.data.session); dialog.close(); }
+      else if(action === 'signup') message('가입 요청을 처리했습니다.\n확인 메일을 받으셨다면 메일의 링크를 눌러 인증을 완료해 주세요. 스팸함도 확인해 주세요.\n이미 가입하신 경우에는 로그인해 주세요.', false);
+    }catch(error){ message(errorText(error), true); }
+    finally{ credentials.password = ''; setBusy(false); }
+  });
+  byId('memberLogout').addEventListener('click', async function(){
+    var button = byId('memberLogout'); button.disabled = true;
+    try{
+      var authClient = await getClient();
+      var result = await authClient.auth.signOut({scope:'local'});
+      if(result.error) throw result.error;
+      updateSession(null);
+    }catch(error){ open('login'); message('로그아웃하지 못했습니다. ' + errorText(error), true); }
+    finally{ button.disabled = false; }
+  });
+  var fragment = new URLSearchParams(window.location.hash.slice(1));
+  if(fragment.has('error_description')){
+    open('login'); message('이메일 확인 링크를 처리하지 못했습니다. 링크가 만료되었거나 이미 사용되었는지 확인해 주세요.', true);
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+  }
+  getClient().catch(function(error){
+    document.documentElement.dataset.authStatus = 'unavailable';
+    if(dialog.open) message(errorText(error), true);
+  });
+})();
+</script>
+
 </body>
 </html>
