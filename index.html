@@ -115,6 +115,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;-webki
 .tag{align-self:flex-start;background:var(--berry);color:#F5EBDD;font-size:12px;padding:6px 12px;border-radius:999px;letter-spacing:.04em}
 .pen{font-family:var(--latin);font-style:italic;font-size:19px;color:var(--berry)}
 .pname{font-family:var(--serif);font-weight:700;font-size:clamp(26px,7vw,40px);line-height:1.25}
+.pprice{font-family:var(--latin);font-size:22px;font-weight:800;color:var(--berry);margin-top:-8px}
 .pts{display:flex;flex-wrap:wrap;gap:8px}
 .pts span{font-size:13px;padding:7px 12px;border-radius:999px;background:var(--sand);color:#4A0E20}
 .price{display:flex;align-items:baseline;gap:10px;padding-top:12px;border-top:1px solid rgba(122,30,54,.15)}
@@ -423,6 +424,7 @@ body{font-size:15px}
         <span class="tag" id="pTag"></span>
         <p class="pen" id="pEn"></p>
         <h3 class="pname" id="pName"></h3>
+        <p class="pprice" id="pPrice" aria-live="polite"></p>
         <p class="lead" id="pDesc" style="color:#4A2A33"></p>
         <div class="pts" id="pPts"></div>
         <div class="price"><b>[가격]원</b><span class="lead">[용량]ml</span></div>
@@ -590,14 +592,17 @@ body{font-size:15px}
   if (window.matchMedia('(hover:hover)').matches) $('hint').textContent = '마우스를 움직이면 3D로 기울어져요';
 
   /* 3) 3D 회전 제품 진열대 (스와이프 지원) */
+  var SUPABASE_API_URL = 'https://hngxucpwbadotokuqjsf.supabase.co/rest/v1/';
+  var SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_PkGV6_dSZhtkE0qGoXscRw_RZFERdxt';
+
   var products = [
-    { name:'홍삼 매화 에센스', en:'Red Ginseng Blossom Essence', tag:'SIGNATURE · 시그니처',
+    { code:'R001', name:'홍삼 매화 에센스', price:39000, en:'Red Ginseng Blossom Essence', tag:'SIGNATURE · 시그니처',
       desc:'홍삼과 매화를 담은 로미엘의 대표 에센스. 세안 후 첫 단계에서 피부 결을 촉촉하게 정돈하고 은은한 윤기를 더해 줍니다.', pts:['홍삼 추출물','매화 추출물','산뜻한 마무리'] },
-    { name:'윤결 크리스탈 앰플', en:'Crystal Radiance Ampoule', tag:'NEW · 신제품',
+    { code:'R002', name:'윤결 크리스탈 앰플', price:42000, en:'Crystal Radiance Ampoule', tag:'NEW · 신제품',
       desc:'맑게 차오르는 윤기를 위한 고농축 앰플. 가볍게 스며들어 끈적임 없이 마무리되어 메이크업 전에도 부담이 없습니다.', pts:['대추 추출물','가벼운 제형','데일리 윤광'] },
-    { name:'윤빛 영양 크림', en:'Nourishing Glow Cream', tag:'MOISTURE · 보습',
+    { code:'R003', name:'윤빛 영양 크림', price:36000, en:'Nourishing Glow Cream', tag:'MOISTURE · 보습',
       desc:'하루의 마지막 단계, 부드럽게 녹아드는 크림 텍스처가 피부의 촉촉함을 오래 지켜 줍니다.', pts:['홍삼 추출물','쫀쫀한 보습막','나이트 케어'] },
-    { name:'녹엽 진정 세럼', en:'Green Leaf Calming Serum', tag:'CALMING · 진정',
+    { code:'R004', name:'녹엽 진정 세럼', price:32000, en:'Green Leaf Calming Serum', tag:'CALMING · 진정',
       desc:'맑은 녹엽 성분을 담은 세럼. 지치고 예민해진 피부에 산뜻한 수분감을 채워 줍니다.', pts:['녹엽 추출물','워터리 제형','스포이드 타입'] }
   ];
   var n = products.length, step = 0;
@@ -614,7 +619,8 @@ body{font-size:15px}
     var idx = ((step % n) + n) % n, p = products[idx];
     ring.style.transform = 'rotateY(' + (-step * 360 / n) + 'deg)';
     dotsBox.querySelectorAll('.dot').forEach(function(d, i){ d.classList.toggle('on', i === idx); });
-    $('pTag').textContent = p.tag; $('pEn').textContent = p.en; $('pName').textContent = p.name; $('pDesc').textContent = p.desc;
+    $('pTag').textContent = p.tag; $('pEn').textContent = p.code + ' · ' + p.en; $('pName').textContent = p.name; $('pDesc').textContent = p.desc;
+    $('pPrice').textContent = Number(p.price).toLocaleString('ko-KR') + '원';
     $('pPts').innerHTML = p.pts.map(function(t){ return '<span>' + t + '</span>'; }).join('');
     var info = $('pinfo'); info.classList.remove('swap'); void info.offsetWidth; info.classList.add('swap');
   }
@@ -628,6 +634,39 @@ body{font-size:15px}
   });
   place(); render();
   window.addEventListener('resize', place);
+
+  /* Supabase products 테이블에서 최신 상품명·가격·이미지 경로 불러오기 */
+  fetch(SUPABASE_API_URL + 'products?select=product_code,product_name,price,image_path&order=product_code.asc', {
+    headers: {
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: 'Bearer ' + SUPABASE_PUBLISHABLE_KEY
+    }
+  })
+  .then(function(response){
+    if (!response.ok) throw new Error('상품 정보를 불러오지 못했습니다. 상태 코드: ' + response.status);
+    return response.json();
+  })
+  .then(function(rows){
+    if (!Array.isArray(rows) || rows.length === 0) throw new Error('등록된 상품이 없습니다.');
+    var cardImages = ring.querySelectorAll('.card3d img');
+    rows.slice(0, products.length).forEach(function(row, index){
+      var current = products.find(function(item){ return item.code === row.product_code; }) || products[index];
+      current.code = row.product_code;
+      current.name = row.product_name;
+      current.price = row.price;
+      current.imagePath = row.image_path;
+      if (cardImages[index] && row.image_path) {
+        cardImages[index].src = row.image_path;
+        cardImages[index].alt = row.product_name;
+      }
+    });
+    render();
+    document.documentElement.setAttribute('data-products-source', 'supabase');
+  })
+  .catch(function(error){
+    console.error('Supabase 연결 오류:', error);
+    document.documentElement.setAttribute('data-products-source', 'fallback');
+  });
 
   /* 4) 성분 카드 뒤집기 */
   document.querySelectorAll('.flipbox').forEach(function(b){ b.addEventListener('click', function(){ b.classList.toggle('on'); }); });
