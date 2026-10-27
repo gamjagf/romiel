@@ -373,6 +373,9 @@ body{font-size:15px}
 .card3d .product-add{font-family:inherit;font-size:13px;min-height:36px;padding:6px 8px;margin-top:auto;width:100%;border-radius:10px}
 .product-notice{margin-top:18px;line-height:1.8;color:#4A2A33;overflow-wrap:anywhere}
 .product-add:disabled{opacity:.65;cursor:wait}
+.product-feedback{position:fixed;z-index:90;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(560px,calc(100% - 32px));padding:20px 22px;border-radius:18px;background:#2A0A14;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,.3);font-size:16px;line-height:1.8;overflow-wrap:anywhere}
+.product-feedback[hidden]{display:none!important}
+.product-feedback button{display:block;margin:10px 0 0 auto;padding:6px 14px;border:1px solid #D8C3B0;border-radius:9px;background:transparent;color:#fff;font:inherit;cursor:pointer}
 
 </style>
 </head>
@@ -462,7 +465,7 @@ body{font-size:15px}
       <p id="productStatusText">상품 정보를 불러오는 중입니다.</p>
       <button type="button" class="btn btn-outline" id="productRetry" hidden>다시 불러오기</button>
     </div>
-    <p class="product-notice" id="productNotice" role="status" aria-live="polite"></p>
+    <p class="product-notice" id="productNotice" aria-live="off"></p>
     <div class="car-wrap" id="productDisplay" hidden aria-busy="true">
       <div>
         <div class="car" id="car" aria-roledescription="carousel" aria-label="로미엘 제품">
@@ -491,6 +494,11 @@ body{font-size:15px}
     </div>
   </div>
 </section>
+
+<div class="product-feedback" id="productFeedback" role="status" aria-live="polite" aria-atomic="true" hidden>
+  <p id="productFeedbackText"></p>
+  <button type="button" id="productFeedbackClose">닫기</button>
+</div>
 
 <!-- STORY -->
 <section id="story" class="sec" style="background:var(--sand)">
@@ -738,22 +746,35 @@ body{font-size:15px}
     button.addEventListener('click', function(){ handleAdd(product, button); });
     summary.append(title, price, button); card.append(picture, summary); return card;
   }
+  var feedbackTimer;
+  function showProductFeedback(text){
+    $('productNotice').textContent = text;
+    $('productFeedbackText').textContent = text;
+    $('productFeedback').hidden = false;
+    clearTimeout(feedbackTimer);
+    feedbackTimer = setTimeout(function(){ $('productFeedback').hidden = true; }, 12000);
+  }
+  $('productFeedbackClose').addEventListener('click', function(){
+    clearTimeout(feedbackTimer); $('productFeedback').hidden = true;
+  });
   async function handleAdd(product, button){
-    var notice = $('productNotice');
-    if(product.id == null){ notice.textContent = '상품번호를 확인할 수 없습니다. 상품을 다시 불러와 주세요.'; return; }
+    var originalText = button.textContent;
+    if(product.id == null){ showProductFeedback('상품번호를 확인할 수 없습니다. 상품을 다시 불러와 주세요.'); return; }
     button.disabled = true;
+    button.textContent = '로그인 확인 중…';
+    showProductFeedback('로그인 상태를 확인하고 있습니다.');
     try{
       if(!window.RomielMember) throw new Error('회원 서비스 준비 중');
       // 화면의 로그인 표시 대신 기존 Auth 클라이언트의 세션을 확인합니다.
       var session = await window.RomielMember.getSession();
       if(!session || !session.user){
-        notice.textContent = '장바구니 담기는 로그인 후 이용해 주세요.';
+        showProductFeedback('장바구니 담기는 로그인 후 이용해 주세요.');
         window.RomielMember.openLogin('장바구니 담기는 로그인 후 이용해 주세요.');
         return;
       }
-      notice.textContent = stringValue(product.name) + ' (상품번호: ' + stringValue(product.id) + ')의 담기 버튼 연결을 확인했습니다. 이번 차시에는 장바구니에 저장하지 않습니다.';
-    }catch(error){ notice.textContent = '로그인 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.'; }
-    finally{ button.disabled = false; }
+      showProductFeedback(stringValue(product.name) + ' (상품번호: ' + stringValue(product.id) + ')의 담기 버튼 연결을 확인했습니다. 이번 차시에는 장바구니에 저장하지 않습니다.');
+    }catch(error){ showProductFeedback('로그인 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.'); }
+    finally{ button.disabled = false; button.textContent = originalText; }
   }
   $('productAdd').addEventListener('click', function(){ if(n) handleAdd(products[((step % n) + n) % n], this); });
   $('prev').addEventListener('click', function(){ if(n){ step--; render(); } });
