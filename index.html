@@ -562,6 +562,12 @@ body{font-size:15px}
       <p id="orderStatus" class="cart-status" role="status" aria-live="polite">로그인 상태를 확인하고 있습니다.</p>
       <button type="button" id="orderLogin" class="btn btn-dark" hidden>로그인하고 주문하기</button>
       <form id="orderForm" hidden>
+        <label for="ordererName">교육용 주문자</label>
+        <input id="ordererName" type="text" maxlength="100" required placeholder="예: 실습주문자" autocomplete="off">
+        <label for="ordererPhone">교육용 주문자 전화번호</label>
+        <input id="ordererPhone" type="tel" maxlength="20" required placeholder="예: 010-1234-5678" autocomplete="off">
+        <label for="recipientPhone">교육용 수령인 전화번호</label>
+        <input id="recipientPhone" type="tel" maxlength="20" required placeholder="예: 010-1234-5678" autocomplete="off">
         <label for="orderRecipient">교육용 수령인</label>
         <input id="orderRecipient" type="text" required maxlength="100" placeholder="예: 실습회원" autocomplete="off">
         <label for="orderAddress">교육용 주소</label>
@@ -577,6 +583,16 @@ body{font-size:15px}
       <button type="button" id="ordersMore" class="cart-refresh" hidden>다음 주문 보기</button>
     </div>
   </div>
+</section>
+
+<section id="adminOrders" class="sec" hidden aria-labelledby="adminTitle">
+  <div class="wrap"><p class="eyebrow">ADMIN ORDERS</p><h2 id="adminTitle">관리자 주문관리</h2>
+    <div class="cart-box"><p class="cart-note">교육용 주문입니다. 실제 결제와 배송은 진행되지 않습니다.</p>
+      <label for="adminSearch">주문번호 또는 주문자 검색</label><input id="adminSearch" type="search" placeholder="주문번호 또는 주문자 이름">
+      <label for="adminFilter">주문상태</label><select id="adminFilter"><option value="">전체</option><option value="received">주문 접수</option><option value="preparing">준비 중</option><option value="shipped">발송 완료</option></select>
+      <button type="button" id="adminRefresh" class="cart-refresh">다시 불러오기</button>
+      <p id="adminMessage" class="cart-status" role="status" aria-live="polite"></p><div id="adminList"></div>
+    </div></div>
 </section>
 
 <section id="story" class="sec" style="background:var(--sand)">
@@ -1234,6 +1250,7 @@ body{font-size:15px}
   var owner, generation=0, query=0, sending=false, loading=false, pending=null;
   var offset=0, pageSize=20;
   var form=$('orderForm'), recipient=$('orderRecipient'), address=$('orderAddress');
+  var orderer=$('ordererName'), ordererPhone=$('ordererPhone'), recipientPhone=$('recipientPhone');
   var storagePrefix='romiel:pending-order:v1:';
   function note(id,value,error){$(id).textContent=value;$(id).dataset.error=String(!!error);}
   function node(tag,value){var el=document.createElement(tag);el.textContent=value;return el;}
@@ -1253,6 +1270,7 @@ body{font-size:15px}
   function controls(){
     form.hidden=!owner;$('orderLogin').hidden=!!owner;
     recipient.readOnly=!!pending;address.readOnly=!!pending;
+    [orderer,ordererPhone,recipientPhone].forEach(function(el){el.readOnly=!!pending;el.required=!(pending && !('p_orderer_name' in pending));});
     $('orderSubmit').disabled=sending;
     form.setAttribute('aria-busy',String(sending));
     $('orderSubmit').textContent=sending?'주문 결과 확인 중…':pending?'같은 요청번호로 주문 결과 확인':'장바구니 상품 주문하기 · 결제 없음';
@@ -1267,7 +1285,7 @@ body{font-size:15px}
     if(id){
       try{
         pending=readPending(id);
-        if(pending){recipient.value=pending.p_recipient_name;address.value=pending.p_address;note('orderStatus','결과 확인이 필요한 주문 요청이 있습니다. 아래 버튼으로 같은 요청을 다시 확인해 주세요.');}
+        if(pending){recipient.value=pending.p_recipient_name;address.value=pending.p_address;orderer.value=pending.p_orderer_name||'';ordererPhone.value=pending.p_orderer_phone||'';recipientPhone.value=pending.p_recipient_phone||'';note('orderStatus','결과 확인이 필요한 주문 요청이 있습니다. 아래 버튼으로 같은 요청을 다시 확인해 주세요.');}
       }catch(error){note('orderStatus',error.message,true);}
     }
     controls();
@@ -1343,14 +1361,14 @@ body{font-size:15px}
         if(!form.reportValidity())return;
         var name=recipient.value.trim(), addr=address.value.trim();
         if(!name || !addr)throw new Error('수령인과 교육용 주소를 입력해 주세요.');
-        pending={p_request_id:crypto.randomUUID(),p_recipient_name:name,p_address:addr};
+        pending={p_request_id:crypto.randomUUID(),p_recipient_name:name,p_address:addr,p_orderer_name:orderer.value.trim(),p_orderer_phone:ordererPhone.value.trim(),p_recipient_phone:recipientPhone.value.trim()};
         sessionStorage.setItem(key(ctx.id),JSON.stringify(pending));
       }
       payload=pending;recipient.value=payload.p_recipient_name;address.value=payload.p_address;controls();
       if(!window.RomielCart.beginCheckout())throw new Error('장바구니 작업이 끝난 후 다시 시도해 주세요.');
       cartLocked=true;
       note('orderStatus','주문 결과를 확인하고 있습니다. 같은 요청번호: '+payload.p_request_id);
-      var result=await ctx.client.rpc('place_order',payload);
+      var result=await ctx.client.rpc(Object.prototype.hasOwnProperty.call(payload,'p_orderer_name')?'place_order_with_contacts':'place_order',payload);
       if(result.error)throw result.error;
       var row=result.data && result.data[0];
       if(!row || !row.order_id)throw new Error('주문 결과를 받지 못했습니다.');
@@ -1381,6 +1399,78 @@ body{font-size:15px}
     setOwner(event.detail.userId);setTimeout(function(){refresh(false);},0);
   });
   refresh(false);
+})();
+
+
+/* 관리자 권한은 서버 함수와 RLS에서 확인합니다. */
+(function(){
+  'use strict';
+  var $=function(id){return document.getElementById(id);};
+  var owner=null, generation=0, rows=[], busy=false;
+  var labels={received:'주문 접수',preparing:'준비 중',shipped:'발송 완료'};
+  function text(tag,value){var el=document.createElement(tag);el.textContent=value;return el;}
+  function money(v){var x=String(v);return /^\d+$/.test(x)&&(typeof v!=='number'||Number.isSafeInteger(v))?BigInt(x).toLocaleString('ko-KR')+'원':'금액 확인 필요';}
+  function message(s){$('adminMessage').textContent=s;}
+  function clear(){rows=[];$('adminList').replaceChildren();$('adminOrders').hidden=true;message('');}
+  function valid(g,id){return generation===g && owner===id;}
+  async function sessionChanged(id){
+    if(owner===id && id!==null)return;
+    owner=id;var g=++generation;busy=false;$('adminRefresh').disabled=false;clear();if(!id)return;
+    try{
+      var client=await window.RomielMember.getClient();
+      var check=await client.rpc('romiel_is_admin');
+      if(!valid(g,id))return;
+      if(check.error)throw check.error;
+      if(check.data===true){$('adminOrders').hidden=false;await load(client,g,id);}
+    }catch(e){if(valid(g,id)){clear();}}
+  }
+  async function load(client,g,id){
+    if(busy)return;busy=true;$('adminRefresh').disabled=true;message('주문을 불러오는 중입니다.');
+    try{
+      var found=[], offset=0, size=200;
+      while(true){
+        var r=await client.from('orders').select('id,user_id,orderer_name,orderer_phone,recipient_name,recipient_phone,address,status,total_amount,created_at').order('created_at',{ascending:false}).order('id',{ascending:false}).range(offset,offset+size-1);
+        if(!valid(g,id))return;if(r.error)throw r.error;
+        found=found.concat(r.data||[]);if((r.data||[]).length<size)break;offset+=size;
+      }
+      rows=found;render();
+    }catch(e){if(valid(g,id)){rows=[];$('adminList').replaceChildren();message('주문을 불러오지 못했습니다. '+(e.message||'다시 시도해 주세요.'));}}
+    finally{if(valid(g,id)){busy=false;$('adminRefresh').disabled=false;}}
+  }
+  function render(){
+    var q=$('adminSearch').value.trim().toLowerCase(), status=$('adminFilter').value;
+    var filtered=rows.filter(function(o){return (!status||o.status===status)&&(!q||String(o.id).toLowerCase().includes(q)||String(o.orderer_name||'').toLowerCase().includes(q));});
+    $('adminList').replaceChildren();message(filtered.length+'건의 주문을 표시합니다.');
+    filtered.forEach(function(o){
+      var a=document.createElement('article');a.className='order-record';
+      a.appendChild(text('h4',labels[o.status]||o.status));
+      ['주문번호: '+o.id,'주문일: '+new Date(o.created_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})+' (한국 시간)','주문자: '+(o.orderer_name||'기록 없음'),'주문금액: '+money(o.total_amount)].forEach(function(t){a.appendChild(text('p',t));});
+      var d=document.createElement('details');d.appendChild(text('summary','주문 상세 보기'));
+      ['주문자 전화번호: '+(o.orderer_phone||'기록 없음'),'수령인: '+(o.recipient_name||'기록 없음'),'수령인 전화번호: '+(o.recipient_phone||'기록 없음'),'배송지: '+(o.address||'기록 없음')].forEach(function(t){d.appendChild(text('p',t));});
+      var list=document.createElement('ul');d.appendChild(list);var loaded=false;
+      d.addEventListener('toggle',async function(){
+        if(!d.open||loaded)return;loaded=true;list.replaceChildren(text('li','불러오는 중입니다.'));
+        var id=owner,g=generation;
+        try{var c=await window.RomielMember.getClient();var r=await c.from('order_items').select('id,product_name,unit_price,quantity').eq('order_id',o.id).order('id');
+          if(!valid(g,id)||!a.isConnected)return;if(r.error)throw r.error;list.replaceChildren();
+          (r.data||[]).forEach(function(i){var p=String(i.unit_price),n=i.quantity;var sub=/^\d+$/.test(p)&&(typeof i.unit_price!=='number'||Number.isSafeInteger(i.unit_price))&&Number.isInteger(n)&&n>0?money((BigInt(p)*BigInt(n)).toString()):'금액 확인 필요';list.appendChild(text('li',i.product_name+' · 단가 '+money(i.unit_price)+' × '+n+'개 = '+sub));});
+          if(!list.childNodes.length)list.appendChild(text('li','조회 가능한 상품이 없습니다.'));
+        }catch(e){if(valid(g,id)&&a.isConnected){loaded=false;list.replaceChildren(text('li','상세 조회 실패: '+(e.message||'다시 시도해 주세요.')+' 닫았다가 다시 열어 주세요.'));}}
+      });a.appendChild(d);
+      var next={received:'preparing',preparing:'shipped'}[o.status];
+      if(next){var b=text('button',labels[next]+'으로 변경');b.type='button';b.className='cart-refresh';b.addEventListener('click',async function(){
+        if(busy)return;var id=owner,g=generation;b.disabled=true;busy=true;message('주문 상태를 변경하는 중입니다.');
+        try{var c=await window.RomielMember.getClient();var r=await c.rpc('romiel_set_order_status',{p_order_id:o.id,p_expected_status:o.status,p_new_status:next});if(!valid(g,id))return;if(r.error)throw r.error;busy=false;await load(c,g,id);}
+        catch(e){if(valid(g,id))message('상태 변경 실패: '+(e.message||'다시 시도해 주세요.')+' 다시 불러온 뒤 확인해 주세요.');}
+        finally{if(valid(g,id)){busy=false;if(a.isConnected)b.disabled=false;}}
+      });a.appendChild(b);}
+      $('adminList').appendChild(a);
+    });
+  }
+  $('adminSearch').addEventListener('input',render);$('adminFilter').addEventListener('change',render);
+  $('adminRefresh').addEventListener('click',async function(){if(!owner||busy)return;var id=owner,g=generation;try{var c=await window.RomielMember.getClient();if(valid(g,id))await load(c,g,id);}catch(e){message('연결하지 못했습니다.');}});
+  window.addEventListener('romiel:session',function(e){sessionChanged(e.detail.userId);});
+  window.RomielMember.getSession().then(function(s){sessionChanged(s&&s.user?s.user.id:null);}).catch(function(){clear();});
 })();
 
 </script>
